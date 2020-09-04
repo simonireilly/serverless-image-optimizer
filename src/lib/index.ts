@@ -5,21 +5,18 @@ type ResizeParameters = {
   srcUrl: string
   w: number
   h?: number
+  format?: 'jpeg' | 'png' | 'webp'
 }
 
-export const resize = async ({srcUrl, w}: ResizeParameters): Promise<Buffer> => {
-  let data: Uint8Array[] = []
+export const resizeStream = async ({ srcUrl, w, format = 'webp' }: ResizeParameters): Promise<Buffer> => {
+  const imageResizer = sharp().resize(w)[format]()
 
   return new Promise(resolve => {
     http.get(srcUrl, { method: 'GET' }, (response) => {
-      response.on('data', (chunk) => {
-        data.push(chunk);
-      })
+      response.pipe(imageResizer)
 
       response.on('end', () => {
-        const imageBuffer = Buffer.concat(data)
-        const resizesBuffer = sharp(imageBuffer).resize(w).toBuffer()
-        resolve(resizesBuffer)
+        resolve(imageResizer.toBuffer())
       })
     })
   })

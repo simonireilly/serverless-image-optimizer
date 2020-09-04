@@ -1,42 +1,42 @@
-import { resize } from '../src/lib'
+import { resizeStream } from '../src/lib'
 import { Application } from 'express'
+import { imageSize } from 'image-size'
 
 import * as path from 'path'
-import * as fs from 'fs'
 import express from 'express'
-
-import { toMatchImageSnapshot } from 'jest-image-snapshot'
-
-expect.extend({ toMatchImageSnapshot });
-
-const app: Application = express()
-const dir = path.join(__dirname, 'public')
-const outDir = path.join(__dirname, 'output')
-app.use(express.static(dir))
 
 let server: any
 
 describe('integration testing', () => {
-  beforeAll(()=> {
-    server = app.listen(3000, function () {
-      console.log('Listening on http://localhost:3000')
-    })
+  beforeAll(() => {
+    const app: Application = express()
+    app.use(express.static(path.join(__dirname, 'public')))
+    server = app.listen(3000, () => null)
   })
 
-  afterAll(()=> {
+  afterAll(() => {
     server.close()
   })
 
-  test('resize image', async () => {
-    const response: Buffer = await resize({
+  test('resizes remote image retrieved from server to webp', async () => {
+    const sourceImageData = imageSize(path.join(__dirname, 'public', 'profile.jpg'))
+
+    const response: Buffer = await resizeStream({
       srcUrl: 'http://localhost:3000/profile.jpg',
-      w: 10
+      w: 100
     })
 
-    await fs.writeFile(path.join(outDir, 'profile.jpg'), response, function (err) {
-      if (err) throw err;
-    })
+    const transformedImageData = imageSize(response)
 
-    expect(response).toMatchImageSnapshot();
+    expect(sourceImageData).toEqual({
+      "height": 460,
+      "type": "jpg",
+      "width": 460,
+    })
+    expect(transformedImageData).toEqual({
+      "height": 100,
+      "type": "webp",
+      "width": 100,
+    })
   })
 })
